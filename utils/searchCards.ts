@@ -1,4 +1,5 @@
 import axios from 'axios';
+import Constants from 'expo-constants';
 
 interface PokemonCard {
   id: string;
@@ -31,7 +32,7 @@ interface PokemonCard {
  * @returns Promise<PokemonCard[]> - Array of matching cards sorted by release date (newest first)
  */
 const searchCards = async (query: string): Promise<PokemonCard[]> => {
-  const API_KEY = 'eb5d6957-d8f8-4f5e-95cf-4074489788c9';
+  const API_KEY = Constants.expoConfig?.extra?.pokemonApiKey || process.env.POKEMON_API_KEY;
   const BASE_URL = 'https://api.pokemontcg.io/v2/cards';
   
   try {
