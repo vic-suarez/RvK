@@ -4,7 +4,8 @@ import { useFonts } from 'expo-font';
 import { SettingsProvider } from './context/SettingsContext';
 import { CartProvider } from './context/CartContext';
 import { SearchProvider } from './context/SearchContext';
-import TabNavigator from './app/navigation/TabNavigator';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import MainNavigator from './app/navigation/MainNavigator';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -18,14 +19,16 @@ export default function App() {
   }
 
   return (
-    <SearchProvider>
-      <SettingsProvider>
-        <CartProvider>
-          <NavigationContainer>
-            <TabNavigator />
-          </NavigationContainer>
-        </CartProvider>
-      </SettingsProvider>
-    </SearchProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SearchProvider>
+        <SettingsProvider>
+          <CartProvider>
+            <NavigationContainer>
+              <MainNavigator />
+            </NavigationContainer>
+          </CartProvider>
+        </SettingsProvider>
+      </SearchProvider>
+    </GestureHandlerRootView>
   );
 }

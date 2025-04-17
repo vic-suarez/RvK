@@ -5,10 +5,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../../context/CartContext';
 import { useSettings } from '../../context/SettingsContext';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import searchCards from '../../utils/searchCards';
 import SearchBar from '../../components/SearchBar';
 import { useSearchContext } from '../../context/SearchContext';
+import { TAB_BAR_HEIGHT } from '../constants/layout';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -196,7 +197,18 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const { searchQuery: searchContextQuery } = useSearchContext();
+  const { searchQuery: searchContextQuery, setSearchQuery: setSearchContextQuery } = useSearchContext();
+
+  // Reset search and show all cards when the Home tab gains focus
+  useFocusEffect(
+    useCallback(() => {
+      setSearchContextQuery('');
+      setSearchQuery('');
+      setSearchResults([]);
+      setShowSearchResults(false);
+      setLoading(false);
+    }, [setSearchContextQuery])
+  );
 
   useEffect(() => {
     if (searchContextQuery && searchContextQuery.trim() !== '') {
@@ -250,35 +262,50 @@ export default function HomeScreen() {
 
   // Reuse the same renderItem function for both home cards and search results
   const renderItem = useCallback(({ item }) => (
-    <StyledView className="w-[48%] bg-white rounded-xl shadow p-2 mb-4 mx-1">
-      <StyledImage 
-        source={{ uri: item.images?.small || item.image }} 
-        className="w-full h-44 rounded-xl mb-2"
-        resizeMode="contain"
-      />
-      <StyledText className="font-semibold text-sm text-gray-800">{item.name}</StyledText>
-      <StyledText className="text-xs text-gray-500">
-        {item.set?.name ? `${item.set.name} · ${item.number || ''}` : item.set}
-      </StyledText>
-      <StyledView className="flex-row justify-between mt-1">
-        <StyledText className="text-xs text-gray-600">
-          ${item.cardmarket?.prices?.averageSellPrice?.toFixed(2) || item.price?.toFixed(2) || 'N/A'}
-        </StyledText>
-        {currency !== 'USD' && (
-          <StyledText className="text-xs text-[#45B3B4] font-medium">
-            S/ {((item.cardmarket?.prices?.averageSellPrice || item.price) * exchangeRate).toFixed(2)}
-          </StyledText>
-        )}
-      </StyledView>
-      <StyledTouchableOpacity 
-        className="absolute top-2 right-2 bg-[#45B3B4] w-6 h-6 rounded-full items-center justify-center shadow"
-        onPress={() => addToCart(item)}
+    <StyledView className="w-[48%] mb-4">
+      <TouchableOpacity 
+        onPress={() => navigation.navigate('CardDetail', { card: item })}
         activeOpacity={0.7}
+        className="flex-1"
       >
-        <StyledText className="text-white text-xs font-bold">＋</StyledText>
-      </StyledTouchableOpacity>
+        <StyledView className="bg-white rounded-xl shadow p-2">
+          <StyledImage 
+            source={{ uri: item.images?.small || item.image }} 
+            className="w-full h-[170px] rounded-xl mb-2"
+            resizeMode="contain"
+          />
+          <StyledView className="min-h-[60px] justify-between">
+            <StyledView>
+              <StyledText className="font-semibold text-sm text-gray-800 mb-1">{item.name}</StyledText>
+              <StyledText className="text-xs text-gray-500">
+                {item.set?.name ? `${item.set.name} · ${item.number || ''}` : item.set}
+              </StyledText>
+            </StyledView>
+            <StyledView className="flex-row justify-between mt-1">
+              <StyledText className="text-xs text-gray-600">
+                ${item.cardmarket?.prices?.averageSellPrice?.toFixed(2) || item.price?.toFixed(2) || 'N/A'}
+              </StyledText>
+              {currency !== 'USD' && (
+                <StyledText className="text-xs text-[#45B3B4] font-medium">
+                  S/ {((item.cardmarket?.prices?.averageSellPrice || item.price) * exchangeRate).toFixed(2)}
+                </StyledText>
+              )}
+            </StyledView>
+          </StyledView>
+          <StyledTouchableOpacity 
+            className="absolute top-2 right-2 bg-[#45B3B4] w-6 h-6 rounded-full items-center justify-center shadow"
+            onPress={(e) => {
+              e.stopPropagation();
+              addToCart(item);
+            }}
+            activeOpacity={0.7}
+          >
+            <StyledText className="text-white text-xs font-bold">＋</StyledText>
+          </StyledTouchableOpacity>
+        </StyledView>
+      </TouchableOpacity>
     </StyledView>
-  ), [currency, exchangeRate, addToCart]);
+  ), [currency, exchangeRate, addToCart, navigation]);
 
   const ListFooterComponent = useCallback(() => (
     <StyledView className="h-6 items-center justify-center mt-2 opacity-50">
@@ -287,47 +314,51 @@ export default function HomeScreen() {
   ), []);
 
   return (
-    <StyledView className="flex-1 bg-white">
-      <StyledSafeAreaView className="flex-1">
-        {/* Search Bar - Always visible at the top */}
-        <SearchBar 
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          handleSearch={handleSearch}
-          clearSearch={clearSearch}
-        />
-        
-        {/* Content Area - Either search results or featured cards */}
-        {showSearchResults ? (
-          loading ? (
-            <LoadingIndicator />
-          ) : (
-            <FlatList
-              data={searchResults}
-              renderItem={renderItem}
-              keyExtractor={(item) => item.id}
-              numColumns={2}
-              columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 16 }}
-              contentContainerStyle={{ paddingBottom: 40 }}
-              ListHeaderComponent={<SearchResultsHeader clearSearch={clearSearch} />}
-              ListEmptyComponent={<EmptySearchResults clearSearch={clearSearch} />}
-              keyboardShouldPersistTaps="handled"
-            />
-          )
+    <StyledSafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SearchBar
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        handleSearch={handleSearch}
+        clearSearch={clearSearch}
+      />
+      <StyledView className="flex-1">
+        {loading ? (
+          <LoadingIndicator />
+        ) : showSearchResults ? (
+          <>
+            <SearchResultsHeader clearSearch={clearSearch} />
+            {searchResults.length === 0 ? (
+              <EmptySearchResults clearSearch={clearSearch} />
+            ) : (
+              <FlatList
+                data={searchResults}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.id.toString()}
+                numColumns={2}
+                columnWrapperStyle={{ justifyContent: 'space-between' }}
+                contentContainerStyle={{ 
+                  paddingHorizontal: 16,
+                  paddingBottom: TAB_BAR_HEIGHT + 20 
+                }}
+                showsVerticalScrollIndicator={false}
+              />
+            )}
+          </>
         ) : (
           <FlatList
             data={mockCards}
             renderItem={renderItem}
             keyExtractor={(item) => item.id.toString()}
             numColumns={2}
-            columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 16 }}
+            columnWrapperStyle={{ justifyContent: 'space-between' }}
+            contentContainerStyle={{ 
+              paddingHorizontal: 16,
+              paddingBottom: TAB_BAR_HEIGHT + 20 
+            }}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 40 }}
-            ListFooterComponent={ListFooterComponent}
-            keyboardShouldPersistTaps="handled"
           />
         )}
-      </StyledSafeAreaView>
-    </StyledView>
+      </StyledView>
+    </StyledSafeAreaView>
   );
 } 
